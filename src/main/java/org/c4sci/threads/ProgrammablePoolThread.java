@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author jean-marc
  *
  */
-public class ProgrammableThread extends Thread {
+public class ProgrammablePoolThread extends Thread {
 	private Object 			accessLock = new Object();
 	//		private int				publishTaskIndex;
 	//		private int 			processTaskIndex;
@@ -45,7 +45,7 @@ public class ProgrammableThread extends Thread {
 	private class QueuedTask{
 		int		taskType;
 		Object	taskParameters = null;
-		boolean isAvailableForPublishing = true;
+		boolean isFree = true;
 		boolean isBeingProcessed = false;
 	}
 
@@ -56,7 +56,7 @@ public class ProgrammableThread extends Thread {
 	 * @param task_queue_size Max threads in a pool, that is also the max task count that can be processed in parallel without any special treatment in {@link #publishTaskToProcess(int, Object, int)}
 	 * @throws ProgrammablePoolException is the queue size is less than 1.
 	 */
-	public ProgrammableThread(final int task_queue_size) throws ProgrammablePoolException {
+	public ProgrammablePoolThread(final int task_queue_size) throws ProgrammablePoolException {
 		if (task_queue_size < 1) {
 			throw new ProgrammablePoolException("Queue size should be at least 1 but: " + task_queue_size);
 		}
@@ -103,14 +103,14 @@ public class ProgrammableThread extends Thread {
 				case SKIP_PENDING_TASK:
 					return false;
 				case RAISE_ON_PENDING_TASK:
-					throw new ProgrammableRuntimeException("Queue is full: cannot accept pending task");
+					throw new ProgrammablePoolRuntimeException("Queue is full: cannot accept pending task");
 				case BLOCK_ON_PENDING_TASK:
 					System.out.println("     ---->blocked on pending task");
 					while (_task_index < 0) {
 						try {
 							accessLock.wait();
 						} catch (InterruptedException _e) {
-							throw new ProgrammableRuntimeException(_e);
+							throw new ProgrammablePoolRuntimeException(_e);
 						}
 						_task_index = findAvailableTask();
 						System.out.println("   ----> waiting on task index = " + _task_index);
@@ -120,7 +120,7 @@ public class ProgrammableThread extends Thread {
 					accessLock.notify();
 					return true;				
 				default:
-					throw new ProgrammableRuntimeException("Unknown publishing policy: " + publishing_policy.toString());
+					throw new ProgrammablePoolRuntimeException("Unknown publishing policy: " + publishing_policy.toString());
 				}
 			}
 			else {
@@ -135,25 +135,48 @@ public class ProgrammableThread extends Thread {
 	private void insertTaskInQueue(final int task_type, final Object task_parameters, final int task_index) {
 		taskQueue[task_index].taskType = 					task_type;
 		taskQueue[task_index].taskParameters = 				task_parameters;
-		taskQueue[task_index].isAvailableForPublishing = 	false;
+		taskQueue[task_index].isFree = 	false;
 		taskQueue[task_index].isBeingProcessed = 			false;
 //		taskToProcessCount ++;
 	}
 	
 	private int findAvailableTask() {
 		for (int _i=0; _i<taskQueue.length; _i++) {
-			if (taskQueue[_i].isAvailableForPublishing) {
+			if (taskQueue[_i].isFree) {
 				return _i;
 			}
 		}
 		return -1;
 	}
 
+	/**
+	 * Stops the thread pool. All busy threads finish their job.
+	 */
 	public void halt() {
 		synchronized (accessLock) {
 			shouldStop = true;
 			accessLock.notify();
 		}
+	}
+	
+	public void waitForTasksEnd() {
+		synchronized (accessLock) {
+			while (atLeastOneThreadBusy()) {
+				try {
+					accessLock.wait();
+				} catch (InterruptedException _e) {
+					throw new ProgrammablePoolRuntimeException(_e);
+				}
+			}
+		}
+	}
+
+	private boolean atLeastOneThreadBusy() {
+		boolean _res = false;
+		for (int _i=0; _i < taskQueue.length; _i++) {
+			_res |= !taskQueue[_i].isFree && taskQueue[_i].isBeingProcessed;
+		}
+		return _res;
 	}
 
 	public void run() {
@@ -183,8 +206,7 @@ public class ProgrammableThread extends Thread {
 								public void run() {
 									_processor.run(taskQueue[_task_to_process].taskParameters);
 									synchronized (accessLock) {
-										taskQueue[_task_to_process].isAvailableForPublishing = true;
-//										taskToProcessCount --;
+										taskQueue[_task_to_process].isFree = true;
 										accessLock.notify();
 									}
 								}
@@ -198,7 +220,7 @@ public class ProgrammableThread extends Thread {
 	
 	private int findTaskToProcess() {
 		for (int _i=0; _i<taskQueue.length; _i++) {
-			if (!taskQueue[_i].isAvailableForPublishing && !taskQueue[_i].isBeingProcessed) {
+			if (!taskQueue[_i].isFree && !taskQueue[_i].isBeingProcessed) {
 				return _i;
 			}
 		}
@@ -207,7 +229,7 @@ public class ProgrammableThread extends Thread {
 	
 	private class TypeAprocessor implements IParametrizedRunnable{
 
-		private static final int MAX_DURATION_MS = 3000;
+		private static final int MAX_DURATION_MS = 5000;
 
 		@Override
 		public void run() {
@@ -248,7 +270,7 @@ public class ProgrammableThread extends Thread {
 	
 	private class TypeBprocessor implements IParametrizedRunnable{
 
-		private static final int MAX_DURATION_MS = 4000;
+		private static final int MAX_DURATION_MS = 6000;
 
 		@Override
 		public void run() {
@@ -295,9 +317,9 @@ public class ProgrammableThread extends Thread {
 		int _task_type_a = 0;
 		int _task_type_b = 1;
 
-		ProgrammableThread _pool = null;
+		ProgrammablePoolThread _pool = null;
 		try {
-			_pool = new ProgrammableThread(_queue_size);
+			_pool = new ProgrammablePoolThread(_queue_size);
 		} catch (ProgrammablePoolException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -330,7 +352,9 @@ public class ProgrammableThread extends Thread {
 			}
 			Thread.sleep(_task_publish_delay_ms);
 		}
-		
+		System.out.println("Waiting for all tasks to finish...");
+		_pool.waitForTasksEnd();
+		System.out.println("... done");
 		_pool.halt();
 		
 	}
