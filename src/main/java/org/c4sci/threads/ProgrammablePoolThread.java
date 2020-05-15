@@ -37,7 +37,7 @@ public class ProgrammablePoolThread extends Thread {
 		 */
 		SKIP_PENDING_TASK,
 		/**
-		 * Submitting a task while all threads are busy will raise an unchecked {@link ProgrammableRuntimeException}
+		 * Submitting a task while all threads are busy will raise an unchecked {@link ProgrammableThreadingException}
 		 */
 		RAISE_ON_PENDING_TASK
 	};
@@ -54,11 +54,11 @@ public class ProgrammablePoolThread extends Thread {
 	/**
 	 * Creates a pool of threads that can process tasks through {@link IParametrizedRunnable}
 	 * @param task_queue_size Max threads in a pool, that is also the max task count that can be processed in parallel without any special treatment in {@link #publishTaskToProcess(int, Object, int)}
-	 * @throws ProgrammablePoolException is the queue size is less than 1.
+	 * @throws ProgrammableThreadingException is the queue size is less than 1.
 	 */
-	public ProgrammablePoolThread(final int task_queue_size) throws ProgrammablePoolException {
+	public ProgrammablePoolThread(final int task_queue_size) throws ProgrammableThreadingException {
 		if (task_queue_size < 1) {
-			throw new ProgrammablePoolException("Queue size should be at least 1 but: " + task_queue_size);
+			throw new ProgrammableThreadingException("Queue size should be at least 1 but: " + task_queue_size);
 		}
 		//			publishTaskIndex = 0;
 		//			processTaskIndex = 0;
@@ -74,14 +74,14 @@ public class ProgrammablePoolThread extends Thread {
 	 * Associates a task type with a processor. 
 	 * @param task_type_id
 	 * @param task_processor_factory A factory to create processor able to process the task type given in parameter
-	 * @throws ProgrammablePoolException if the factory is null or an association has already been defined with the task type.
+	 * @throws ProgrammableThreadingException if the factory is null or an association has already been defined with the task type.
 	 */
-	public void addProcessor(Integer task_type_id, IParametrizedRunnable task_processor_factory) throws ProgrammablePoolException {
+	public void addProcessor(Integer task_type_id, IParametrizedRunnable task_processor_factory) throws ProgrammableThreadingException {
 		if (task_processor_factory == null) {
-			throw new ProgrammablePoolException("Cannot associate a null processor with task type " + task_type_id);
+			throw new ProgrammableThreadingException("Cannot associate a null processor with task type " + task_type_id);
 		}
 		if (taskToProcessorFactory.containsKey(task_type_id)) {
-			throw new ProgrammablePoolException("Task type " + task_type_id + " has already been published");
+			throw new ProgrammableThreadingException("Task type " + task_type_id + " has already been published");
 		}
 		else {
 			taskToProcessorFactory.put(task_type_id, task_processor_factory);
@@ -103,24 +103,21 @@ public class ProgrammablePoolThread extends Thread {
 				case SKIP_PENDING_TASK:
 					return false;
 				case RAISE_ON_PENDING_TASK:
-					throw new ProgrammablePoolRuntimeException("Queue is full: cannot accept pending task");
+					throw new ProgrammableThreadingException("Queue is full: cannot accept pending task");
 				case BLOCK_ON_PENDING_TASK:
-					System.out.println("     ---->blocked on pending task");
 					while (_task_index < 0) {
 						try {
 							accessLock.wait();
 						} catch (InterruptedException _e) {
-							throw new ProgrammablePoolRuntimeException(_e);
+							throw new ProgrammableThreadingException(_e);
 						}
 						_task_index = findAvailableTask();
-						System.out.println("   ----> waiting on task index = " + _task_index);
 					}
-					System.out.println("      ----> inserting task in queue");
 					insertTaskInQueue(task_type, task_parameters, _task_index);
 					accessLock.notify();
 					return true;				
 				default:
-					throw new ProgrammablePoolRuntimeException("Unknown publishing policy: " + publishing_policy.toString());
+					throw new ProgrammableThreadingException("Unknown publishing policy: " + publishing_policy.toString());
 				}
 			}
 			else {
@@ -165,7 +162,7 @@ public class ProgrammablePoolThread extends Thread {
 				try {
 					accessLock.wait();
 				} catch (InterruptedException _e) {
-					throw new ProgrammablePoolRuntimeException(_e);
+					throw new ProgrammableThreadingException(_e);
 				}
 			}
 		}
@@ -311,7 +308,7 @@ public class ProgrammablePoolThread extends Thread {
 	
 	public static void main(String[] args) throws InterruptedException {
 		int _queue_size = 4;
-		int _publishing_count = 10;
+		int _publishing_count = 5;
 		int _task_publish_delay_ms = 500;
 		
 		int _task_type_a = 0;
@@ -320,7 +317,7 @@ public class ProgrammablePoolThread extends Thread {
 		ProgrammablePoolThread _pool = null;
 		try {
 			_pool = new ProgrammablePoolThread(_queue_size);
-		} catch (ProgrammablePoolException e1) {
+		} catch (ProgrammableThreadingException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 			System.exit(1);
@@ -328,7 +325,7 @@ public class ProgrammablePoolThread extends Thread {
 		try {
 			_pool.addProcessor(_task_type_a, _pool.new TypeAprocessor());
 			_pool.addProcessor(_task_type_b, _pool.new TypeBprocessor());
-		} catch (ProgrammablePoolException e) {
+		} catch (ProgrammableThreadingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(2);
@@ -353,10 +350,10 @@ public class ProgrammablePoolThread extends Thread {
 			Thread.sleep(_task_publish_delay_ms);
 		}
 		System.out.println("Waiting for all tasks to finish...");
-		_pool.waitForTasksEnd();
-		System.out.println("... done");
+
 		_pool.halt();
-		
+		_pool.waitForTasksEnd();		
+		System.out.println("... done");	
 	}
 
 }
