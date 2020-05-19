@@ -54,7 +54,7 @@ public class ProgrammablePoolThread extends Thread {
 	/**
 	 * Creates a pool of threads that can process tasks through {@link IParametrizedRunnable}
 	 * @param task_queue_size Max threads in a pool, that is also the max task count that can be processed in parallel without any special 
-	 * treatment in {@link #publishTaskToProcess(int, Object, TaskPublishingPolicy)
+	 * treatment in publishTaskToProcess(int, Object, TaskPublishingPolicy)
 	 * @throws ProgrammableThreadingException is the queue size is less than 1.
 	 */
 	public ProgrammablePoolThread(final int task_queue_size) throws ProgrammableThreadingException {
