@@ -29,11 +29,11 @@ public class ProgrammablePoolThread extends Thread {
 	 */
 	public static enum TaskPublishingPolicy {
 		/**
-		 * Submitting a task while all threads are busy will block the {@link #publishTaskToProcess(int, Object)} caller.
+		 * Submitting a task while all threads are busy will block publishTaskToProcess caller.
 		 */
 		BLOCK_ON_PENDING_TASK,
 		/**
-		 * A task that is send through {@link #publishTaskToProcess(int, Object)} when all threads are busy, will be skipped.
+		 * A task that is send through publishTaskToProcess(int, Object) when all threads are busy, will be skipped.
 		 */
 		SKIP_PENDING_TASK,
 		/**
@@ -53,7 +53,8 @@ public class ProgrammablePoolThread extends Thread {
 
 	/**
 	 * Creates a pool of threads that can process tasks through {@link IParametrizedRunnable}
-	 * @param task_queue_size Max threads in a pool, that is also the max task count that can be processed in parallel without any special treatment in {@link #publishTaskToProcess(int, Object, int)}
+	 * @param task_queue_size Max threads in a pool, that is also the max task count that can be processed in parallel without any special 
+	 * treatment in {@link #publishTaskToProcess(int, Object, TaskPublishingPolicy)
 	 * @throws ProgrammableThreadingException is the queue size is less than 1.
 	 */
 	public ProgrammablePoolThread(final int task_queue_size) throws ProgrammableThreadingException {
