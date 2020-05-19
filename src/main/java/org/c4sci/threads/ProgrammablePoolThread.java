@@ -23,7 +23,7 @@ public class ProgrammablePoolThread extends Thread {
 	private boolean			shouldStop;
 	
 	/**
-	 * Tasks publishing policies as used by # 
+	 * Tasks publishing policies as used by... 
 	 * @author jean-marc
 	 *
 	 */
