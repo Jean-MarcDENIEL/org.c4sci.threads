@@ -38,10 +38,26 @@
   </plugins>
   </build>
   
-  <distributionManagement>
+  <!-- <distributionManagement>
       <repository>
           <id>internal</id>
-          <url>file:///home/jean-marc/maven/</url>
+          <url>file://C:\Users\jeanmarc.deniel\.m2\repository</url>
       </repository>
-  </distributionManagement>  
+  </distributionManagement> -->
+  
+  
+  <!-- output to Nexus -->
+  <distributionManagement>
+  	<repository> <!--  Releases repository -->
+  		<id>nexus</id>  <!--  send to nexus server -->
+  		<name>Releases</name>
+  		<url>http://pcw10evojdl.inrs.fr:8081/repository/maven-releases/</url>
+  	</repository>
+	<snapshotRepository> <!-- Snapshots repository -->
+		<id>nexus</id>
+		<name>Snapshot</name>
+		<url>http://pcw10evojdl.inrs.fr:8081/repository/maven-snapshots/</url>
+	</snapshotRepository>
+  </distributionManagement>
+  
 </project>
